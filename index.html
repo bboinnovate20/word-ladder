@@ -146,7 +146,7 @@
   @keyframes bump { 40% { transform: scale(1.3) rotate(-5deg); } }
   .plus { position: absolute; left: 50%; top: 100%; color: var(--pop); font-size: 28px; font-weight: 700; white-space: nowrap; -webkit-text-stroke: 1px #fff; animation: rise 1.2s ease-out forwards; }
   @keyframes rise { 0% { opacity: 0; transform: translate(-50%, 14px) scale(.5); } 25% { opacity: 1; transform: translate(-50%, 2px) scale(1.25); } 100% { opacity: 0; transform: translate(-50%, -30px); } }
-  #cd { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); font-size: 170px; font-weight: 700; line-height: 1; color: var(--sun); -webkit-text-stroke: 5px var(--ink); pointer-events: none; }
+  #cd { position: fixed; left: 50%; top: 40%; translate: -50% -50%; font-size: 170px; font-weight: 700; line-height: 1; color: var(--sun); -webkit-text-stroke: 5px var(--ink); pointer-events: none; }
   #cd.tick { animation: popin .3s; }
   #avail { font-weight: 700; font-size: 17px; color: var(--pop); -webkit-text-stroke: .5px #fff; font-variant-numeric: tabular-nums; min-height: 1.2em; }
   .change { display: flex; align-items: center; gap: 14px; padding: 12px 22px; color: var(--ink); font-size: 22px; }
@@ -154,8 +154,8 @@
   .change b:last-child { color: #17a673; }
   .fast { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; min-height: 40px; }
   .fast .av { --s: 34px; }
-  #miss { position: fixed; left: 50%; top: 96px; transform: translateX(-50%); padding: 8px 18px; border-radius: 999px; box-shadow: 0 5px 0 var(--ink); background: var(--pop); color: #fff; font-weight: 700; font-size: 18px; white-space: nowrap; pointer-events: none; animation: popin .35s both; }
-  #done { position: fixed; left: 50%; top: 96px; transform: translateX(-50%); padding: 8px 18px; border-radius: 999px; box-shadow: 0 5px 0 var(--ink); background: var(--mint); font-weight: 700; font-size: 18px; white-space: nowrap; pointer-events: none; animation: popin .35s both; }
+  #miss { position: fixed; left: 50%; top: 96px; translate: -50% 0; padding: 8px 18px; border-radius: 999px; box-shadow: 0 5px 0 var(--ink); background: var(--pop); color: #fff; font-weight: 700; font-size: 18px; white-space: nowrap; pointer-events: none; animation: popin .35s both; }
+  #done { position: fixed; left: 50%; top: 96px; translate: -50% 0; padding: 8px 18px; border-radius: 999px; box-shadow: 0 5px 0 var(--ink); background: var(--mint); font-weight: 700; font-size: 18px; white-space: nowrap; pointer-events: none; animation: popin .35s both; }
 
   .dock { position: fixed; left: 12px; right: 12px; bottom: 14px; display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none; }
   .dock > * { pointer-events: auto; }
@@ -1011,9 +1011,10 @@
   }
 
   /* ---------- the host runs the clock ---------- */
+  // Any real word counts as a way forward, not only everyday ones (CHEERS -> CHEEKS).
   function hasMove(w, chain) {
     var used = new Set(chain);
-    return neighbours(w, COMMONSET).some(function (n) { return !used.has(n.w); });
+    return neighbours(w).some(function (n) { return !used.has(n.w); });
   }
   function freshWord(chain, n) {
     var pool = COMMON_BY[n] || COMMON_BY[4];
