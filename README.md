@@ -1,8 +1,9 @@
 # Word Ladder
 
-A 3D word-ladder race. Each round shows one word, and everyone races to change one letter to make
-a new real word before the clock runs out. Faster correct answers score more, and the fastest
-player's word becomes the next round's word.
+A 3D word-ladder game. Everyone starts from the same word, then each player builds their own chain
+one letter at a time (HARD -> CARD -> CARE ...). Every word change is a round with its own clock:
+change a letter before the clock runs out for a point; if the clock wins, that round's point is lost.
+The clock resets for every new word.
 
 Plain static site: `index.html`, `words.js` (the dictionary), `qrcode.js`, and `api/config.js`
 (optional, reads Supabase keys on Vercel). No build step.
@@ -58,13 +59,14 @@ The publishable/anon key is meant to be public, so it is fine in the repo. Never
   They get a six-digit code.
 - Players join by typing the code, scanning the lobby QR code, or opening the copied link
   (`https://your-site/#join-123456`).
-- Each round everyone changes one letter of the same word. A word already used in this game
-  doesn't count.
-- Scoring: a correct word is worth 1000 points the moment the round opens, draining to 200 as the
-  clock runs down. Missing the clock scores nothing and resets your streak. Answering several rounds
-  in a row adds +100, +200 or +300 on top.
-- After each round a leaderboard shows the change (for example HARD -> LARD) and who was fastest.
-  Their word starts the next round. If nobody answers, the same word stays.
+- Each player plays at their own pace from the shared first word. Each round they change one
+  letter of their current word to make a real word they haven't used yet; the clock then resets for
+  the next word.
+- Scoring: 1 point for each change made in time. Speed doesn't matter as long as it's in time.
+  A round where the clock runs out scores nothing, and the player carries on from the same word.
+- If a player's word can't be changed into any unused real word, the game gives them a fresh word
+  and says so.
+- When everyone has finished all their rounds, the podium shows the final points (ties share a place).
 - Solo mode plays the same rules against two robot players.
 
 ## Dictionary
