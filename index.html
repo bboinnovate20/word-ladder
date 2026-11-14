@@ -857,15 +857,32 @@
       });
     } };
   }
+  function viaPeerJS() {
+    return loadScript('https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js').then(function () {
+      return window.Peer ? peerLobby(Object.assign({ debug: 0 }, CFG.peerServer || {})) : null;
+    }).catch(function () { return null; });
+  }
+  function viaSupabase(url, key) {
+    return loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js').then(function () {
+      return supabaseLobby(window.supabase.createClient(url, key, { realtime: { params: { eventsPerSecond: 10 } } }));
+    });
+  }
+  // Supabase keys come from the config block above, or from /api/config (Vercel environment
+  // variables, see api/config.js). With neither, or if Supabase will not load, PeerJS is used.
+  function supabaseKeys() {
+    if (CFG.supabaseUrl && CFG.supabaseKey) return Promise.resolve({ url: CFG.supabaseUrl, key: CFG.supabaseKey });
+    if (!window.fetch || location.protocol === 'file:') return Promise.resolve({});
+    return fetch('/api/config', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : {}; })
+      .then(function (c) { return { url: c && c.supabaseUrl, key: c && c.supabaseKey }; })
+      .catch(function () { return {}; });
+  }
   var roomP = IN_CLAUDE
     ? Promise.resolve(window.claude.use('room')).catch(function () { return null; })
-    : (CFG.supabaseUrl && CFG.supabaseKey
-      ? loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js').then(function () {
-          return supabaseLobby(window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, { realtime: { params: { eventsPerSecond: 10 } } }));
-        }).catch(function () { return null; })
-      : loadScript('https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js').then(function () {
-          return window.Peer ? peerLobby(Object.assign({ debug: 0 }, CFG.peerServer || {})) : null;
-        }).catch(function () { return null; }));
+    : supabaseKeys().then(function (c) {
+        var good = typeof c.url === 'string' && /^https:\/\/[^\s"']+$/.test(c.url) && typeof c.key === 'string' && c.key.length > 10;
+        return good ? viaSupabase(c.url, c.key).catch(viaPeerJS) : viaPeerJS();
+      });
 
   // The link a QR code or "Copy link" hands out: this page, opened straight into the game.
   var ARTIFACT_URL = 'https://claude.ai/artifact/8HEfgaDmnrQyfePkQY5GAo';

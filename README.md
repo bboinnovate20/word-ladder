@@ -33,13 +33,18 @@ strict networks too. The free plan is enough.
    - the **publishable** key (starts `sb_publishable_`), or the legacy **anon public** key
 3. In **Realtime > Settings**, make sure **Allow public access** is on. The game uses public
    presence channels named `wl-<game code>` and stores nothing in the database.
-4. Put both values in the config block near the bottom of `index.html`:
+4. In Vercel, open the project's **Settings > Environment Variables** and add:
 
-   ```html
-   window.WORD_LADDER = Object.assign({ supabaseUrl: 'https://abcdefghijkl.supabase.co', supabaseKey: 'sb_publishable_...' }, window.WORD_LADDER);
-   ```
+   | Name | Value |
+   | --- | --- |
+   | `SUPABASE_URL` | the Project URL |
+   | `SUPABASE_PUBLISHABLE_KEY` | the publishable (or anon public) key |
 
-5. Commit and push; Vercel redeploys.
+   Tick all environments (Production, Preview, Development).
+5. Redeploy (Deployments > ... > Redeploy). New variables only reach new deployments.
+
+`api/config.js` hands those two values to the game. If you host somewhere without serverless
+functions, put them in the config block near the bottom of `index.html` instead.
 
 The publishable/anon key is meant to be public, so it is fine in the repo. Never paste the
 **secret** or **service_role** key.
