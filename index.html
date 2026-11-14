@@ -907,7 +907,7 @@
           leave: function () { return Promise.resolve(client.removeChannel(ch)).then(noop); }
         };
         ch.on('presence', { event: 'sync' }, fire).subscribe(function (status) {
-          if (status === 'SUBSCRIBED') { if (!inside) { inside = true; ch.track({ p: state }); ok(room); } }
+          if (status === 'SUBSCRIBED') { if (!inside) { inside = true; ch.track({ p: state }); ok(room); } else ch.track({ p: state }); }
           else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { if (!inside) fail({ code: 'upstream_error' }); }
           else if (status === 'CLOSED' && inside && room.onErr && handlers.length) room.onErr({ code: 'upstream_error' });
         });
@@ -1049,11 +1049,43 @@
     return roomP.then(function (lobby) {
       if (!lobby) throw { code: 'off' };
       return lobby.join('wl-' + code);
+    }).then(function (r) { attachRoom(r, code); });
+  }
+  function attachRoom(r, code) {
+    S.room = r; S.code = code; S.peers = r.peers();
+    S.unsub = r.onPeers(function (ch) { if (S.room === r) { S.peers = ch.peers; peersChanged(); } },
+      function () { if (S.room === r) reconnect(1); });
+  }
+  // Phones drop live connections, for example while the host switches app to share the code.
+  // Rejoin the same game and send our state again, instead of ending the game.
+  function reconnect(attempt) {
+    var code = S.code, old = S.room, token = S.sess;
+    if (!code || !S.mode || S.mode === 'solo') return;
+    if (S.unsub) { try { S.unsub(); } catch (e) {} S.unsub = null; }
+    S.room = null;
+    if (old) { try { old.leave().catch(noop); } catch (e) {} }
+    note('Reconnecting\u2026');
+    roomP.then(function (lobby) {
+      if (!lobby) throw { code: 'off' };
+      return lobby.join('wl-' + code);
     }).then(function (r) {
-      S.room = r; S.code = code; S.peers = r.peers();
-      S.unsub = r.onPeers(function (ch) { S.peers = ch.peers; peersChanged(); }, function () { if (S.room === r) quit('The connection dropped.'); });
+      if (token !== S.sess || !S.mode) { r.leave().catch(noop); return; }
+      attachRoom(r, code);
+      pushMe();
+      if (S.mode === 'host' && S.g) S.room.presence({ g: S.g }).catch(noop);
+      $('note').hidden = true;
+    }).catch(function () {
+      if (token !== S.sess || !S.mode) return;
+      if (attempt < 5) setTimeout(function () { reconnect(attempt + 1); }, 1200 * attempt);
+      else quit('The connection dropped. Check your internet, then host or join again.');
     });
   }
+  // A phone that goes to the background can miss updates: send our state again when it comes back.
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden || !S.room) return;
+    pushMe();
+    if (S.mode === 'host' && S.g) S.room.presence({ g: S.g }).catch(noop);
+  });
   function closeRoom() {
     if (S.unsub) { try { S.unsub(); } catch (e) {} S.unsub = null; }
     if (S.room) { var r = S.room; S.room = null; r.leave().catch(noop); }
@@ -1081,13 +1113,18 @@
   function peersChanged() {
     if (S.mode === 'join') {
       var h = hostPeer();
-      if (h) { S.hostSeen = true; var g = cleanG(h.presence.g); if (g) onGame(g); }
-      else if (S.hostSeen) { quit('The host left the game.'); return; }
+      if (h) {
+        S.hostSeen = true; clearTimeout(S.hostGone); S.hostGone = 0;
+        var g = cleanG(h.presence.g); if (g) onGame(g);
+      } else if (S.hostSeen && !S.hostGone) {
+        // the host may only be reconnecting: wait before giving up on them
+        S.hostGone = setTimeout(function () { S.hostGone = 0; if (S.mode === 'join' && !hostPeer()) quit('The host left the game.'); }, 10000);
+      }
     }
     render();
   }
   function quit(msg) {
-    closeRoom();
+    closeRoom(); clearTimeout(S.hostGone); S.hostGone = 0; S.token++; S.sess = (S.sess || 0) + 1;
     S.mode = S.intent = null; S.ready = false; S.hostSeen = false; S.pending = null; S.g = null; S.lastKey = '';
     S.me.s = S.me.r = 0; S.me.d = false;
     G.state = 'lock'; G.sel = null; G.target = ''; tidyScene(); stampWord('PLAY'); paintBackground();
