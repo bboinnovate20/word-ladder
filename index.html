@@ -64,7 +64,8 @@
   /* screens */
   .screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 22px 16px; box-sizing: border-box; overflow-y: auto; }
   .screen > * { flex: none; }
-  .mid { justify-content: center; }
+  .mid::before, .mid::after { content: ''; margin: auto; }   /* centred, yet scrollable from the top when taller than the screen */
+  #who { padding-top: 66px; }
   .veil { background: rgba(142, 216, 255, .62); }
   .room { color: #fff; background-color: var(--grape); background-image: radial-gradient(rgba(255, 255, 255, .13) 2.5px, transparent 3px); background-size: 26px 26px; }
   .night { color: #fff; background-color: var(--ink); background-image: radial-gradient(rgba(255, 255, 255, .09) 2.5px, transparent 3px); background-size: 26px 26px; }
@@ -92,7 +93,9 @@
   .avs button { min-height: 0; aspect-ratio: 1; padding: 0; border-radius: 34%; box-shadow: 0 3px 0 var(--ink); }
   .avs button[aria-pressed="true"] { outline: 4px solid var(--ink); outline-offset: 2px; }
   .opts { display: grid; gap: 8px; align-items: center; }
-  .opts.r { grid-template-columns: 68px 1fr 1fr 1fr; } .opts.l { grid-template-columns: 68px repeat(5, 1fr); } .opts.w { grid-template-columns: repeat(3, 1fr); } .opts.o { grid-template-columns: 1fr 54px; }
+  .opts.r { grid-template-columns: 68px 1fr 1fr 1fr; } .opts.pp { grid-template-columns: 1fr 1fr; }
+  #p2Av { min-height: 0; padding: 0; border-radius: 34%; box-shadow: none; } .opts.rr { grid-template-columns: 68px repeat(4, 1fr); }
+  .tip { margin: -4px 0 0; font-weight: 600; font-size: 14px; line-height: 1.3; opacity: .75; text-wrap: balance; } .opts.l { grid-template-columns: 68px repeat(5, 1fr); } .opts.w { grid-template-columns: repeat(3, 1fr); } .opts.o { grid-template-columns: 1fr 54px; }
   .opts button { min-height: 46px; padding: 0 4px; font-size: 18px; border-radius: 14px; box-shadow: 0 4px 0 var(--ink); background: var(--soft); font-variant-numeric: tabular-nums; }
   .opts.w button { letter-spacing: .06em; font-size: 17px; }
   .opts button[aria-pressed="true"] { background: var(--ink); color: #fff; }
@@ -138,6 +141,15 @@
   .chip { position: relative; justify-self: start; display: flex; align-items: center; gap: 8px; padding: 5px 14px 5px 6px; border-radius: 999px; box-shadow: 0 5px 0 var(--ink); font-weight: 700; font-size: 22px; font-variant-numeric: tabular-nums; }
   .chip .av { --s: 36px; }
   .chip.right { justify-self: end; padding: 9px 14px; font-size: 18px; }
+  #p2Chip { padding: 5px 14px 5px 6px; font-size: 22px; }
+  .chip.on { outline: 4px solid var(--ink); outline-offset: 2px; animation: floaty 1s ease-in-out infinite; }
+  .chip.off { opacity: .55; }
+  #cd.turn { top: 24%; padding: 10px 22px; font-size: clamp(24px, 8vw, 34px); -webkit-text-stroke: 0; color: var(--ink); white-space: nowrap; border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 6px 0 var(--ink); }
+  .solo1 { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px 34px 22px; color: var(--ink); animation: popin .5s both; }
+  .solo1 .av { --s: 64px; animation: floaty 1.1s ease-in-out infinite; }
+  .solo1 b { font-size: 76px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .solo1 span { font-weight: 700; font-size: 18px; }
+  .solo1 .best { color: #17a673; }
   .clock { display: flex; flex-direction: column; align-items: center; gap: 4px; }
   #time { min-width: 62px; padding: 4px 12px 6px; text-align: center; font-size: 34px; line-height: 1; border-radius: 18px; box-shadow: 0 5px 0 var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
   #time.low { background: var(--pop); color: #fff; animation: popin .3s; }
@@ -179,6 +191,7 @@
   <div class="chip tile" id="meChip"><span class="av" id="meAv"></span><span id="meScore">0</span></div>
   <div class="clock"><div class="tile" id="time">15</div><div id="rd"></div></div>
   <div class="chip tile right" id="rank"></div>
+  <div class="chip tile right" id="p2Chip" hidden><span class="av" id="p2HudAv"></span><span id="p2Score">0</span></div>
 </div>
 <div id="cd" hidden></div>
 <div class="tile" id="done" hidden>Nice! &#9733;</div>
@@ -203,7 +216,7 @@
     <div class="or">OR</div>
     <div class="pair">
       <button class="sun" id="hostBtn" type="button">Host</button>
-      <button class="mint" id="soloBtn" type="button">Solo</button>
+      <button class="mint" id="soloBtn" type="button">Play here</button>
     </div>
   </form>
   <p class="credit">by ibrahim</p>
@@ -213,11 +226,15 @@
 <div class="screen veil mid" id="who" hidden>
   <button class="x" id="whoBack" type="button" aria-label="Back">&#8249;</button>
   <form class="card tile" id="whoForm" autocomplete="off">
+    <div class="opts pp" id="ppRow" role="group" aria-label="Players"><button type="button" id="pp1" aria-pressed="true">1 player</button><button type="button" id="pp2" aria-pressed="false">2 players</button></div>
     <div class="me"><span class="av" id="whoAv"></span><input id="nick" type="text" maxlength="12" placeholder="Your name" aria-label="Your name"></div>
     <div class="avs" id="avs" role="group" aria-label="Your colour"></div>
+    <div class="me" id="p2Row" hidden><button type="button" class="av" id="p2Av" aria-label="Change player 2's colour" title="Tap to change colour"></button><input id="nick2" type="text" maxlength="12" placeholder="Player 2 name" aria-label="Player 2 name"></div>
+    <p class="tip" id="p2Tip" hidden>Take turns on this device. Each turn is one word change, on its own timer.</p>
     <div id="setup">
       <div class="card" style="padding:0">
-        <div class="opts r" role="group" aria-label="Rounds"><span class="lab">Rounds</span><button type="button" id="r5" aria-pressed="true">5</button><button type="button" id="r10" aria-pressed="false">10</button><input id="rn" type="number" min="1" max="99" inputmode="numeric" placeholder="#" aria-label="Your own number of rounds"></div>
+        <div class="opts rr" role="group" aria-label="Rounds"><span class="lab">Rounds</span><button type="button" id="r5" aria-pressed="true">5</button><button type="button" id="r10" aria-pressed="false">10</button><button type="button" id="r0" aria-pressed="false" aria-label="No limit: play until your word can't be changed" title="No limit">&#8734;</button><input id="rn" type="number" min="1" max="99" inputmode="numeric" placeholder="#" aria-label="Your own number of rounds"></div>
+        <p class="tip" id="endlessTip" hidden>No limit: keep going until your word can't be changed into a new word, or the timer runs out 3 times in a row.</p>
         <div class="opts r" role="group" aria-label="Seconds per word"><span class="lab">Time</span><button type="button" id="t10" aria-pressed="false">10s</button><button type="button" id="t15" aria-pressed="true">15s</button><button type="button" id="t20" aria-pressed="false">20s</button></div>
         <div class="opts l" role="group" aria-label="Letters"><span class="lab">Letters</span><button type="button" id="l3" aria-pressed="false">3</button><button type="button" id="l4" aria-pressed="true">4</button><button type="button" id="l5" aria-pressed="false">5</button><button type="button" id="l6" aria-pressed="false">6</button><button type="button" id="l7" aria-pressed="false">7</button></div>
         <span class="lab">First word</span>
@@ -259,7 +276,7 @@
 
 <!-- final podium -->
 <div class="screen night" id="over" hidden>
-  <h2>Winners!</h2>
+  <h2 id="overTitle">Winners!</h2>
   <div class="podium" id="podium"></div>
   <div class="rows" id="finalRows"></div>
   <div class="foot">
@@ -684,9 +701,10 @@
   var NAME_B = ['Fox', 'Panda', 'Otter', 'Tiger', 'Koala', 'Robin', 'Whale', 'Gecko'];
   var S = {
     mode: null, intent: null, ready: false, screen: 'home', code: '', room: null, unsub: null, peers: [], hostSeen: false, pending: null,
-    me: { n: '', a: 0, s: 0, r: 0, d: false, t0: 0 },
+    me: { n: '', a: 0, s: 0, r: 0, d: false, t0: 0, miss: 0 },
     g: null, gid: '', lastKey: '', startAt: 0, wordEnds: 0, token: 0, moveToken: 0, hostEnds: 0, allAt: 0, shownT: -1, shownC: -1, lastCount: 0, fresh: false,
-    bots: [], set: { tot: 5, dur: 15, start: 'HARD' }
+    local: 1, p2: { n: '', a: 1, s: 0, r: 0, d: false }, cur: 0, missRow: 0, best: 0, newBest: false,
+    set: { tot: 5, dur: 15, start: 'HARD' }
   };
   function now() { return performance.now(); }
   function noop() {}
@@ -718,14 +736,35 @@
     return 'HARD';
   }
 
+  function two() { return S.mode === 'solo' && S.local === 2; }
+  function cp() { return two() && S.cur === 1 ? S.p2 : S.me; }   // the player whose turn it is
+  function roundsLeft(p) { return !S.g.tot || p.r < S.g.tot; }
   // A new round: the clock starts again for this player's current word.
+  function endRun(why) {
+    G.state = 'fin'; G.sel = G.hint = null; S.me.d = true; S.p2.d = true;
+    pushMe(); sfx.win(); spawn(party()); ui(); if (why) note(why);
+  }
+  // Between turns on a shared device: name the next player before their clock starts.
+  function showTurn(then) {
+    var token = S.token, p = cp();
+    G.state = 'turn'; ui(); renderHud();
+    cdEl.textContent = p.n + '\u2019s turn'; cdEl.style.background = AV[p.a];
+    cdEl.classList.add('turn'); cdEl.hidden = false; cdEl.classList.remove('tick'); void cdEl.offsetWidth; cdEl.classList.add('tick');
+    sfx.join();
+    setTimeout(function () {
+      if (token !== S.token) return;
+      cdEl.hidden = true; cdEl.classList.remove('turn'); cdEl.style.background = '';
+      then();
+    }, 1200);
+  }
   function beginWord() {
+    if (!legal().length && !S.g.tot) { endRun('No new word can be made from ' + G.word + '. Great run!'); return; }
     if (!legal().length) {   // a dead end: carry on from a new word, and say so
       var old = G.word, w = freshWord(G.used, old.length);
       G.word = w; G.used.add(w); stampWord(w);
       note('No new word can be made from ' + old + ', so here is a fresh one!');
     }
-    G.state = 'pick'; G.sel = G.hint = null; G.turn = S.me.r % 2;
+    G.state = 'pick'; G.sel = G.hint = null; G.turn = two() ? S.cur : S.me.r % 2;
     S.wordEnds = now() + S.g.dur * 1000; S.shownT = -1;
     ui(); renderHud();
   }
@@ -733,13 +772,22 @@
     var token = S.token;
     setTimeout(function () {
       if (token !== S.token || !S.g || S.g.ph !== 'play') return;
-      if (S.me.r >= S.g.tot) { G.state = 'fin'; S.me.d = true; pushMe(); sfx.win(); spawn(party()); ui(); }
+      if (two()) {
+        if (!S.g.tot && S.missRow >= 3) { endRun('The timer ran out 3 times in a row. Game over!'); return; }
+        var other = 1 - S.cur, nextP = other === 1 ? S.p2 : S.me;
+        if (roundsLeft(nextP)) S.cur = other;
+        else if (!roundsLeft(cp())) { endRun(''); return; }
+        showTurn(beginWord);
+        return;
+      }
+      if (S.g.tot && S.me.r >= S.g.tot) { G.state = 'fin'; S.me.d = true; pushMe(); sfx.win(); spawn(party()); ui(); }
+      else if (!S.g.tot && S.me.miss >= 3) endRun('The timer ran out 3 times in a row. Great run!');
       else beginWord();
     }, delay);
   }
   function accept(slot, ch) {
     var h = hands[G.turn], next = G.word.slice(0, slot) + ch + G.word.slice(slot + 1);
-    S.me.s += 1; S.me.r += 1;
+    var p = cp(); p.s += 1; p.r += 1; S.me.miss = 0; S.missRow = 0;
     G.word = next; G.used.add(next); G.state = 'busy'; G.sel = G.hint = null;
     pushMe(); floatPlus(1); ui(); sfx.word(true);
     var token = ++S.moveToken, settled = false;
@@ -763,7 +811,7 @@
     }, 2200);
   }
   function timeUp() {
-    G.state = 'miss'; G.sel = G.hint = null; S.me.r += 1;
+    G.state = 'miss'; G.sel = G.hint = null; cp().r += 1; S.me.miss += 1; S.missRow += 1;
     pushMe(); sfx.nope(); ui();
     afterWord(1400);
   }
@@ -783,7 +831,7 @@
     G.sel = G.sel === i ? null : i; sfx.tap(); ui();
   }
 
-  /* ---------- players: real ones over the room, or robots in solo ---------- */
+  /* ---------- players: real ones over the room, or the one or two players on this device ---------- */
   function players() {
     var list = [];
     if (S.room) S.peers.forEach(function (p) {
@@ -792,7 +840,7 @@
       if (typeof pr.n !== 'string' || !pr.n) return;
       list.push({ id: p.peer, n: pr.n.slice(0, 12), a: Math.abs(+pr.a | 0) % AV.length, s: Math.max(0, Math.min(999, +pr.s | 0)), r: Math.max(0, +pr.r | 0), d: !!pr.d, me: false });
     });
-    else S.bots.forEach(function (b) { list.push(b); });
+    else if (two()) list.push({ id: 'p2', n: S.p2.n, a: S.p2.a, s: S.p2.s, r: S.p2.r, d: S.p2.d, me: false });
     if (S.me.n) list.push({ id: 'me', n: S.me.n, a: S.me.a, s: S.me.s, r: S.me.r, d: S.me.d, me: true });
     return list.sort(function (a, b) { return b.s - a.s || (a.n < b.n ? -1 : 1); });
   }
@@ -997,7 +1045,7 @@
   function cleanG(g) {
     if (!g || ['lobby', 'play', 'board', 'over'].indexOf(g.ph) < 0) return null;
     var word = function (w) { w = String(w || '').toUpperCase(); return ALL.has(w) ? w : ''; };
-    var o = { ph: g.ph, id: String(g.id).slice(0, 12), rd: Math.max(0, +g.rd | 0), tot: Math.max(1, Math.min(99, +g.tot | 0)), dur: Math.max(5, Math.min(120, +g.dur || 15)), left: Math.max(0, +g.left || 0),
+    var o = { ph: g.ph, id: String(g.id).slice(0, 12), rd: Math.max(0, +g.rd | 0), tot: Math.max(0, Math.min(99, +g.tot | 0)), dur: Math.max(5, Math.min(120, +g.dur || 15)), left: Math.max(0, +g.left || 0),
       st: word(g.st), ch: [], from: word(g.from), to: word(g.to), by: typeof g.by === 'string' ? g.by.slice(0, 12) : '', stuck: word(g.stuck), ba: Math.abs(+g.ba | 0) % AV.length };
     if (Array.isArray(g.ch)) o.ch = g.ch.slice(-80).map(word).filter(Boolean);
     if (g.ph === 'play' && !o.st) return null;
@@ -1013,7 +1061,7 @@
   }
   function quit(msg) {
     closeRoom();
-    S.mode = S.intent = null; S.ready = false; S.hostSeen = false; S.pending = null; S.g = null; S.lastKey = ''; S.bots = [];
+    S.mode = S.intent = null; S.ready = false; S.hostSeen = false; S.pending = null; S.g = null; S.lastKey = '';
     S.me.s = S.me.r = 0; S.me.d = false;
     G.state = 'lock'; G.sel = null; G.target = ''; tidyScene(); stampWord('PLAY'); paintBackground();
     $('homeMsg').textContent = msg || ''; $('leaveDlg').hidden = true;
@@ -1030,18 +1078,21 @@
     if (g.ph === 'lobby') {
       S.token++; S.me.s = S.me.r = 0; S.me.d = false; G.state = 'lock'; pushMe(); show('lobby');
     } else if (g.ph === 'play') {
-      S.token++; S.me.s = 0; S.me.r = 0; S.me.d = false;
+      S.token++; S.me.s = 0; S.me.r = 0; S.me.d = false; S.me.miss = 0;
+      S.p2.s = 0; S.p2.r = 0; S.p2.d = !two(); S.cur = 0; S.missRow = 0; S.newBest = false;
       startRace(g.st); S.startAt = now() + g.left * 1000; G.state = 'count';
-      pushMe(); armBots(); show('play');
+      pushMe(); show('play');
     } else if (g.ph === 'over') {
-      S.token++; G.state = 'lock'; G.sel = null; sfx.win(); burst(new THREE.Vector3(0, 1.6, 0), 120, 7, 3); show('over');
+      S.token++; saveBest();
+      G.state = 'lock'; G.sel = null; sfx.win(); burst(new THREE.Vector3(0, 1.6, 0), 120, 7, 3); show('over');
     }
   }
 
   /* ---------- the host starts the game and ends it once everyone has finished ---------- */
   function hostStart() {
     S.allAt = 0;
-    S.hostEnds = now() + (3 + S.set.tot * (S.set.dur + 3) + 10) * 1000;   // a safety net if someone never finishes
+    // a safety net if someone never finishes; with no limit the game ends only when everyone is done
+    S.hostEnds = S.set.tot ? now() + (3 + S.set.tot * (S.set.dur + 3) + 10) * 1000 : Infinity;
     S.g = { ph: 'play', id: S.gid, tot: S.set.tot, dur: S.set.dur, st: S.set.start, left: 3 };
     pushG();
   }
@@ -1052,38 +1103,23 @@
     if (now() > S.hostEnds || (S.allAt && now() - S.allAt > 2500)) { S.g = Object.assign({}, S.g, { ph: 'over' }); pushG(); }
   }
 
-  /* ---------- solo robots: each keeps its own chain and its own clock ---------- */
-  function botThink(b) { return (b.min + Math.random() * (b.max - b.min)) * S.g.dur * 1000; }   // past the clock = a miss
-  function armBots() {
-    S.bots.forEach(function (b) {
-      b.s = 0; b.r = 0; b.d = false; b.cur = S.g.st; b.used = new Set([b.cur]);
-      b.wait = botThink(b); b.at = S.startAt + Math.min(b.wait, S.g.dur * 1000);
-    });
-  }
-  function botsTick() {
-    if (S.mode !== 'solo' || !S.g || S.g.ph !== 'play') return;
-    S.bots.forEach(function (b) {
-      if (b.d || now() < b.at) return;
-      var fresh = function (n) { return !b.used.has(n.w); };
-      var opts = neighbours(b.cur, COMMONSET).filter(fresh);
-      if (!opts.length) opts = neighbours(b.cur).filter(fresh);
-      if (!opts.length) { b.cur = freshWord(b.used, b.cur.length); b.used.add(b.cur); }
-      else if (b.wait <= S.g.dur * 1000) { b.cur = rand(opts).w; b.used.add(b.cur); b.s += 1; }
-      b.r += 1;
-      if (b.r >= S.g.tot) b.d = true;
-      else { b.wait = botThink(b); b.at = now() + 1800 + Math.min(b.wait, S.g.dur * 1000); }
-      renderHud();
-    });
+  /* ---------- best score for one player on this device ---------- */
+  function bestKey() { return 'wl-best-' + S.g.tot + '-' + S.g.dur; }
+  function loadBest() { try { return +(localStorage.getItem(bestKey()) || 0); } catch (e) { return 0; } }
+  function saveBest() {
+    if (S.mode !== 'solo' || two()) return;
+    S.best = loadBest(); S.newBest = S.me.s > S.best && S.me.s > 0;
+    if (S.newBest) { try { localStorage.setItem(bestKey(), String(S.me.s)); } catch (e) {} }
   }
 
   /* ---------- every frame: the start countdown, then this player's word clock ---------- */
   var timeEl = $('time'), cdEl = $('cd');
   function tick() {
-    hostTick(); botsTick();
+    hostTick();
     if (!S.g || S.g.ph !== 'play' || S.screen !== 'play') return;
     if (G.state === 'count') {
       var pre = (S.startAt - now()) / 1000;
-      if (pre <= 0) { cdEl.hidden = true; sfx.go(); beginWord(); }
+      if (pre <= 0) { cdEl.hidden = true; sfx.go(); if (two()) showTurn(beginWord); else beginWord(); }
       else {
         var c = Math.ceil(pre);
         if (c !== S.shownC) { S.shownC = c; cdEl.hidden = false; cdEl.textContent = c; cdEl.classList.remove('tick'); void cdEl.offsetWidth; cdEl.classList.add('tick'); sfx.tick(); }
@@ -1113,7 +1149,7 @@
     hintBtn.disabled = G.state !== 'pick';
     var done = $('done');
     done.hidden = !(S.screen === 'play' && (G.state === 'busy' || G.state === 'fin'));
-    done.textContent = G.state === 'fin' ? (S.mode === 'solo' ? 'All done! \u2605' : 'All done! \u2605 Waiting for the others') : 'Nice! \u2605';
+    done.textContent = G.state === 'fin' ? (S.mode === 'solo' ? 'All done! \u2605' : 'All done! \u2605 Waiting for the others') : two() ? 'Nice, ' + cp().n + '! \u2605' : 'Nice! \u2605';
     $('miss').hidden = !(S.screen === 'play' && G.state === 'miss');
     boardDirty = true;
   }
@@ -1121,9 +1157,23 @@
     if (S.screen !== 'play' || !S.g) return;
     ps = ps || players();
     $('meAv').style.background = AV[S.me.a]; $('meScore').textContent = S.me.s;
-    var at = 1; ps.forEach(function (p) { if (p.me) at = place(ps, p); });
-    $('rank').textContent = '#' + at + ' of ' + ps.length;
-    $('rd').textContent = 'Round ' + Math.min(S.me.r + 1, S.g.tot) + ' / ' + S.g.tot;
+    var duo = two(), solo1 = S.mode === 'solo' && !duo, rank = $('rank');
+    $('p2Chip').hidden = !duo; rank.hidden = duo;
+    $('meChip').classList.toggle('on', duo && S.cur === 0 && G.state !== 'fin');
+    $('meChip').classList.toggle('off', duo && S.cur === 1 && G.state !== 'fin');
+    if (duo) {
+      $('p2HudAv').style.background = AV[S.p2.a]; $('p2Score').textContent = S.p2.s;
+      $('p2Chip').classList.toggle('on', S.cur === 1 && G.state !== 'fin');
+      $('p2Chip').classList.toggle('off', S.cur === 0 && G.state !== 'fin');
+    } else if (solo1) {
+      var best = Math.max(loadBest(), S.me.s);
+      rank.textContent = 'Best ' + best;
+    } else {
+      var at = 1; ps.forEach(function (p) { if (p.me) at = place(ps, p); });
+      rank.textContent = '#' + at + ' of ' + ps.length;
+    }
+    var p = cp(), r = Math.min(p.r + (G.state === 'fin' ? 0 : 1), S.g.tot || Infinity);
+    $('rd').textContent = (duo ? p.n + ' \u00b7 ' : '') + 'Round ' + Math.max(1, r) + (S.g.tot ? ' / ' + S.g.tot : '');
   }
   var noteTimer = 0;
   function note(text) {
@@ -1131,7 +1181,7 @@
     clearTimeout(noteTimer); noteTimer = setTimeout(function () { e.hidden = true; }, 4000);
   }
   function floatPlus(n) {
-    var chip = $('meChip'), plus = mk('span', 'plus', '+' + n);
+    var chip = two() && S.cur === 1 ? $('p2Chip') : $('meChip'), plus = mk('span', 'plus', '+' + n);
     chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump');
     chip.appendChild(plus); setTimeout(function () { plus.remove(); }, 1300);
   }
@@ -1175,6 +1225,15 @@
     }
     if (S.screen === 'over') {
       var pod = $('podium'); pod.textContent = '';
+      if (S.mode === 'solo' && !two()) {
+        $('overTitle').textContent = S.newBest ? 'New best!' : 'Well done!';
+        var t = mk('div', 'solo1 tile'); t.appendChild(avatar(S.me.a)); t.appendChild(mk('span', '', S.me.n));
+        t.appendChild(mk('b', '', S.me.s)); t.appendChild(mk('span', '', S.me.s === 1 ? 'point' : 'points'));
+        t.appendChild(mk('span', 'best', S.newBest ? '\u2605 Your best score yet' : 'Best: ' + Math.max(S.best, S.me.s)));
+        pod.appendChild(t); $('finalRows').textContent = ''; $('againBtn').hidden = false;
+        S.fresh = false; return;
+      }
+      $('overTitle').textContent = two() ? (ps[0].s === ps[1].s ? 'It\u2019s a tie!' : ps[0].n + ' wins!') : 'Winners!';
       ps.slice(0, 3).forEach(function (p, i) {
         var s = mk('div', 'step p' + (i + 1)); s.appendChild(avatar(p.a)); s.appendChild(mk('b', '', p.n));
         var b = mk('div', 'blk'); b.appendChild(mk('i', '', place(ps, p))); b.appendChild(mk('u', '', p.s)); s.appendChild(b); pod.appendChild(s);
@@ -1218,7 +1277,7 @@
   $('nextBtn').addEventListener('click', function () { sfx.tap(); hostStart(S.g.rd + 1); });
   $('againBtn').addEventListener('click', function () {
     sfx.tap(); S.gid = newId();
-    if (S.mode === 'solo') hostStart();
+    if (S.mode === 'solo') { S.gid = newId(); hostStart(); return; }
     else { S.g = { ph: 'lobby', id: S.gid, rd: 0, tot: S.set.tot, dur: S.set.dur, left: 0 }; pushG(); }
   });
 
@@ -1265,14 +1324,30 @@
     var b = mk('button'); b.type = 'button'; b.style.background = c; b.setAttribute('aria-label', 'Colour ' + (i + 1));
     b.addEventListener('click', function () { sfx.tap(); setAv(i); }); $('avs').appendChild(b);
   });
+  var nick2El = $('nick2');
+  function setLocal(n) {
+    S.local = n;
+    $('pp1').setAttribute('aria-pressed', n === 1); $('pp2').setAttribute('aria-pressed', n === 2);
+    $('p2Row').hidden = $('p2Tip').hidden = n !== 2;
+    nickEl.placeholder = n === 2 ? 'Player 1 name' : 'Your name';
+    nickEl.setAttribute('aria-label', nickEl.placeholder);
+  }
+  function setP2Av(i) { S.p2.a = i % AV.length; $('p2Av').style.background = AV[S.p2.a]; }
+  $('pp1').addEventListener('click', function () { sfx.tap(); setLocal(1); });
+  $('pp2').addEventListener('click', function () { sfx.tap(); setLocal(2); if (S.p2.a === S.me.a) setP2Av(S.me.a + 1); });
+  $('p2Av').addEventListener('click', function () { sfx.tap(); var i = S.p2.a + 1; if (i % AV.length === S.me.a) i++; setP2Av(i); });
   function openWho(intent) {
     S.intent = intent;
     $('setup').hidden = intent === 'join';
+    $('ppRow').hidden = intent !== 'solo';
+    setLocal(intent === 'solo' ? S.local : 1);
     goBtn.textContent = intent === 'join' ? 'Join' : intent === 'host' ? 'Create game' : 'Play';
     $('whoMsg').textContent = '';
     var me = saved();
     nickEl.value = S.me.n || me.n || (rand(NAME_A) + ' ' + rand(NAME_B));
     setAv(typeof me.a === 'number' ? me.a % AV.length : Math.floor(Math.random() * AV.length));
+    nick2El.value = S.p2.n || me.n2 || (rand(NAME_A) + ' ' + rand(NAME_B));
+    setP2Av(typeof me.a2 === 'number' && me.a2 !== S.me.a ? me.a2 : S.me.a + 1);
     show('who');
   }
   $('whoBack').addEventListener('click', function () { quit(''); });
@@ -1311,10 +1386,12 @@
   var rounds = 5, secs = 15;
   function setRounds(n, typed) {
     rounds = n; $('r5').setAttribute('aria-pressed', !typed && n === 5); $('r10').setAttribute('aria-pressed', !typed && n === 10);
+    $('r0').setAttribute('aria-pressed', n === 0); $('endlessTip').hidden = n !== 0;
     rnEl.classList.toggle('picked', !!typed); if (!typed) rnEl.value = '';
   }
   $('r5').addEventListener('click', function () { sfx.tap(); setRounds(5); });
   $('r10').addEventListener('click', function () { sfx.tap(); setRounds(10); });
+  $('r0').addEventListener('click', function () { sfx.tap(); setRounds(0); });
   rnEl.addEventListener('input', function () {
     var n = Math.floor(+rnEl.value);
     if (n >= 1) { n = Math.min(n, 99); if (+rnEl.value !== n) rnEl.value = n; setRounds(n, true); } else setRounds(5);
@@ -1338,8 +1415,10 @@
   $('whoForm').addEventListener('submit', function (e) {
     e.preventDefault();
     S.me.n = nickEl.value.replace(/\s+/g, ' ').trim().slice(0, 12) || (rand(NAME_A) + ' ' + rand(NAME_B));
-    try { localStorage.setItem('wl-me', JSON.stringify({ n: S.me.n, a: S.me.a })); } catch (err) {}
-    nickEl.blur(); ownEl.blur(); rnEl.blur();
+    S.p2.n = nick2El.value.replace(/\s+/g, ' ').trim().slice(0, 12) || (rand(NAME_A) + ' ' + rand(NAME_B));
+    if (S.p2.n === S.me.n) S.p2.n += ' 2';
+    try { localStorage.setItem('wl-me', JSON.stringify({ n: S.me.n, a: S.me.a, n2: S.p2.n, a2: S.p2.a })); } catch (err) {}
+    nickEl.blur(); nick2El.blur(); ownEl.blur(); rnEl.blur();
     if (S.intent === 'join') {
       S.ready = true; pushMe();
       var g = S.pending; S.pending = null; S.lastKey = '';
@@ -1354,7 +1433,6 @@
     S.set = { tot: rounds, dur: secs, start: w };
     if (S.intent === 'solo') {
       S.mode = 'solo'; S.ready = true; S.gid = newId();
-      S.bots = [{ id: 'b1', n: 'Robo', a: 4, s: 0, r: 0, k: 0, d: false, me: false, min: 0.3, max: 0.9 }, { id: 'b2', n: 'Pixel', a: 6, s: 0, r: 0, k: 0, d: false, me: false, min: 0.45, max: 1.15 }];
       hostStart(); return;
     }
     goBtn.disabled = true; goBtn.textContent = '…';

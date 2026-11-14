@@ -54,7 +54,10 @@ The publishable/anon key is meant to be public, so it is fine in the repo. Never
 
 ## How a game runs
 
-- The host picks the number of rounds (5, 10 or any number), seconds per word (10, 15 or 20),
+- Three ways to play: **Host** (others join with a code or QR), **Play here, 1 player** (beat your
+  best score, saved on the device), or **Play here, 2 players** (take turns on one device on a
+  shared chain; player 1 is the yellow glove, player 2 the blue one).
+- The host picks the number of rounds (5, 10, any number, or no limit), seconds per word (10, 15 or 20),
   the word length (3 to 7 letters), and a first word (a suggestion or any real word they type).
   They get a six-digit code.
 - Players join by typing the code, scanning the lobby QR code, or opening the copied link
@@ -67,7 +70,8 @@ The publishable/anon key is meant to be public, so it is fine in the repo. Never
 - If a player's word can't be changed into any unused real word, the game gives them a fresh word
   and says so.
 - When everyone has finished all their rounds, the podium shows the final points (ties share a place).
-- Solo mode plays the same rules against two robot players.
+- No limit (the infinity button): keep going until your word can't be changed into an unused
+  word, or the timer runs out 3 times in a row.
 
 ## Dictionary
 
