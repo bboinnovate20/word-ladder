@@ -52,7 +52,17 @@ functions, put them in the config block near the bottom of `index.html` instead.
 The publishable/anon key is meant to be public, so it is fine in the repo. Never paste the
 **secret** or **service_role** key.
 
-## How a game runs
+## Two game types
+
+- **Beat the clock:** timed rounds, described below.
+- **Reach a goal word:** a first word and a goal word (HARD -> SOFT, or any pair that can be
+  joined one letter at a time). No timer. Each move says whether you got closer, the goal letters
+  turn green on the board as they fall into place, and the hint points to a move that gets closer.
+  Fewest steps wins; the end screen shows the fewest possible. Two players on one device take turns
+  and reach the goal together. Online, everyone races on their own chain: finishers rank by fewest
+  steps, then who finished first; the host can end the game early with **End game**.
+
+## How a timed game runs
 
 - Three ways to play: **Host** (others join with a code or QR), **Play here, 1 player** (beat your
   best score, saved on the device), or **Play here, 2 players** (take turns on one device on a

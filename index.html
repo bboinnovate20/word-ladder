@@ -77,6 +77,12 @@
   .wiz .q2 button { font-size: 20px; }
   .wiz .q4 input { height: 60px; font-size: 22px; border-radius: 18px; }
   .wiz .w button { min-height: 54px; font-size: 19px; }
+  .wiz .modes button { min-height: 72px; font-size: 19px; line-height: 1.15; padding: 0 10px; }
+  .wiz #goals button { min-height: 54px; font-size: 19px; letter-spacing: .06em; }
+  #goalOwn { text-transform: uppercase; letter-spacing: .2em; }
+  #goalOwn::placeholder { letter-spacing: .04em; text-transform: none; font-size: 15px; }
+  #goalOwn.picked { background: var(--ink); color: #fff; }
+  #time.goal { font-size: 26px; padding: 9px 14px 10px; letter-spacing: .08em; color: #17a673; }
   .dots { display: flex; justify-content: center; gap: 8px; }
   .dots i { width: 10px; height: 10px; border-radius: 50%; background: #d3d9ee; transition: width .2s, background .2s; }
   .dots i.on { width: 26px; border-radius: 5px; background: var(--ink); }
@@ -217,6 +223,7 @@
   <div class="tools">
     <button id="hint" type="button" aria-label="Hint" title="Hint">?</button>
     <button id="quitBtn" type="button" aria-label="Leave game" title="Leave game">&#10005;</button>
+    <button id="endBtn" type="button" class="pop" hidden style="width:auto;padding:0 18px;border-radius:999px;font-size:17px">End game</button>
     <button id="snd" type="button" aria-label="Sound" title="Sound" aria-pressed="true">&#9834;</button>
   </div>
 </div>
@@ -253,20 +260,29 @@
     </section>
 
     <section class="qs" id="st2" hidden>
-      <h3>How long?</h3>
-      <span class="lab">Rounds</span>
-      <div class="opts q4" role="group" aria-label="Rounds"><button type="button" id="r5" aria-pressed="true">5</button><button type="button" id="r10" aria-pressed="false">10</button><button type="button" id="r0" aria-pressed="false" aria-label="No limit: play until your word can't be changed" title="No limit">&#8734;</button><input id="rn" type="number" min="1" max="99" inputmode="numeric" placeholder="#" aria-label="Your own number of rounds"></div>
-      <p class="tip" id="endlessTip" hidden>&#8734; No limit: keep going until your word can&rsquo;t be changed into a new word, or the timer runs out 3 times in a row.</p>
-      <span class="lab">Seconds for each word</span>
-      <div class="opts q3" role="group" aria-label="Seconds for each word"><button type="button" id="t10" aria-pressed="false">10</button><button type="button" id="t15" aria-pressed="true">15</button><button type="button" id="t20" aria-pressed="false">20</button></div>
+      <h3>How do you want to play?</h3>
+      <div class="opts q2 modes" role="group" aria-label="Game type"><button type="button" id="mTimed" aria-pressed="true">Beat the clock</button><button type="button" id="mGoal" aria-pressed="false">Reach a goal word</button></div>
+      <p class="tip" id="modeTip"></p>
+      <div class="qs" id="timedOpts">
+        <span class="lab">Rounds</span>
+        <div class="opts q4" role="group" aria-label="Rounds"><button type="button" id="r5" aria-pressed="true">5</button><button type="button" id="r10" aria-pressed="false">10</button><button type="button" id="r0" aria-pressed="false" aria-label="No limit: play until your word can't be changed" title="No limit">&#8734;</button><input id="rn" type="number" min="1" max="99" inputmode="numeric" placeholder="#" aria-label="Your own number of rounds"></div>
+        <p class="tip" id="endlessTip" hidden>&#8734; No limit: keep going until your word can&rsquo;t be changed into a new word, or the timer runs out 3 times in a row.</p>
+        <span class="lab">Seconds for each word</span>
+        <div class="opts q3" role="group" aria-label="Seconds for each word"><button type="button" id="t10" aria-pressed="false">10</button><button type="button" id="t15" aria-pressed="true">15</button><button type="button" id="t20" aria-pressed="false">20</button></div>
+      </div>
     </section>
 
     <section class="qs" id="st3" hidden>
-      <h3>Pick a first word</h3>
+      <h3 id="st3Q">Pick a first word</h3>
       <span class="lab">How many letters?</span>
       <div class="opts q5" role="group" aria-label="Letters"><button type="button" id="l3" aria-pressed="false">3</button><button type="button" id="l4" aria-pressed="true">4</button><button type="button" id="l5" aria-pressed="false">5</button><button type="button" id="l6" aria-pressed="false">6</button><button type="button" id="l7" aria-pressed="false">7</button></div>
       <div class="opts w" id="words" role="group" aria-label="First word"></div>
       <div class="opts o"><input id="own" type="text" maxlength="7" autocapitalize="characters" spellcheck="false" placeholder="or type your own" aria-label="Type your own first word, 3 to 7 letters"><button type="button" id="mix" aria-label="Other words" title="Other words">&#8635;</button></div>
+      <div class="qs" id="goalBox" hidden>
+        <span class="lab">Goal word</span>
+        <div class="opts q3" id="goals" role="group" aria-label="Goal word"></div>
+        <div class="opts o"><input id="goalOwn" type="text" maxlength="7" autocapitalize="characters" spellcheck="false" placeholder="or type your own goal" aria-label="Type your own goal word"><button type="button" id="goalMix" aria-label="Other goal words" title="Other goal words">&#8635;</button></div>
+      </div>
     </section>
 
     <p class="msg" id="whoMsg" aria-live="polite"></p>
@@ -483,12 +499,13 @@
     g.fillStyle = grad; g.fillRect(0, 0, CW, CH);
     boardDirty = true;
     if (!G.target) return;
-    g.font = '600 84px Fredoka, "Trebuchet MS", sans-serif'; g.textBaseline = 'alphabetic';
+    var fs = G.target.length <= 5 ? 84 : G.target.length === 6 ? 70 : 60;
+    g.font = '600 ' + fs + 'px Fredoka, "Trebuchet MS", sans-serif'; g.textBaseline = 'alphabetic';
     var sp = 8, arrow = 170;
-    function width(w) { var t = 0; for (var i = 0; i < 4; i++) t += g.measureText(w[i]).width + sp; return t - sp; }
+    function width(w) { var t = 0; for (var i = 0; i < w.length; i++) t += g.measureText(w[i]).width + sp; return t - sp; }
     var ws = width(G.start), wt = width(G.target), x = (CW - ws - arrow - wt) / 2, y = 134;
     function put(w, color) {
-      for (var i = 0; i < 4; i++) { g.fillStyle = color(i); g.fillText(w[i], x, y); x += g.measureText(w[i]).width + sp; }
+      for (var i = 0; i < w.length; i++) { g.fillStyle = color(i); g.fillText(w[i], x, y); x += g.measureText(w[i]).width + sp; }
       x -= sp;
     }
     g.globalAlpha = 0.45; put(G.start, function () { return INK.base; }); g.globalAlpha = 1;
@@ -731,7 +748,7 @@
     me: { n: '', a: 0, s: 0, r: 0, d: false, t0: 0, miss: 0 },
     g: null, gid: '', lastKey: '', startAt: 0, wordEnds: 0, token: 0, moveToken: 0, hostEnds: 0, allAt: 0, shownT: -1, shownC: -1, lastCount: 0, fresh: false,
     local: 1, p2: { n: '', a: 1, s: 0, r: 0, d: false }, cur: 0, missRow: 0, best: 0, newBest: false,
-    set: { tot: 5, dur: 15, start: 'HARD' }
+    set: { mode: 'timed', tot: 5, dur: 15, start: 'HARD', goal: '' }, fewest: 0
   };
   function now() { return performance.now(); }
   function noop() {}
@@ -764,6 +781,8 @@
   }
 
   function two() { return S.mode === 'solo' && S.local === 2; }
+  function goalMode() { return !!(S.g && S.g.mode === 'goal'); }
+  function far(w) { var d = G.dist.get(w); return d === undefined ? 99 : d; }
   function cp() { return two() && S.cur === 1 ? S.p2 : S.me; }   // the player whose turn it is
   function roundsLeft(p) { return !S.g.tot || p.r < S.g.tot; }
   // A new round: the clock starts again for this player's current word.
@@ -785,14 +804,18 @@
     }, 1200);
   }
   function beginWord() {
-    if (!legal().length && !S.g.tot) { endRun('No new word can be made from ' + G.word + '. Great run!'); return; }
+    if (goalMode() && !legal().length) {   // boxed in on the way to the goal: earlier words open up again
+      G.used = new Set([G.word]);
+      note('Every word next to ' + G.word + ' is used, so you can reuse earlier words now.');
+    }
+    if (!goalMode() && !legal().length && !S.g.tot) { endRun('No new word can be made from ' + G.word + '. Great run!'); return; }
     if (!legal().length) {   // a dead end: carry on from a new word, and say so
       var old = G.word, w = freshWord(G.used, old.length);
       G.word = w; G.used.add(w); stampWord(w);
       note('No new word can be made from ' + old + ', so here is a fresh one!');
     }
     G.state = 'pick'; G.sel = G.hint = null; G.turn = two() ? S.cur : S.me.r % 2;
-    S.wordEnds = now() + S.g.dur * 1000; S.shownT = -1;
+    S.wordEnds = goalMode() ? Infinity : now() + S.g.dur * 1000; S.shownT = -1;
     ui(); renderHud();
   }
   function afterWord(delay) {
@@ -814,20 +837,28 @@
   }
   function accept(slot, ch) {
     var h = hands[G.turn], next = G.word.slice(0, slot) + ch + G.word.slice(slot + 1);
-    var p = cp(); p.s += 1; p.r += 1; S.me.miss = 0; S.missRow = 0;
+    var p = cp(), before = far(G.word), goal = goalMode(), reached = goal && next === G.target;
+    p.s += 1; p.r += 1; S.me.miss = 0; S.missRow = 0;
     G.word = next; G.used.add(next); G.state = 'busy'; G.sel = G.hint = null;
-    pushMe(); floatPlus(1); ui(); sfx.word(true);
+    if (goal) {
+      var change = far(next) - before;
+      S.me.gd = far(next); paintBackground();
+      floatPlus(reached ? 'Goal!' : change < 0 ? 'Closer!' : change > 0 ? 'Further' : 'Same', change > 0);
+      if (reached) sfx.win(); else sfx.word(change < 0);
+    } else { floatPlus('+1'); sfx.word(true); }
+    pushMe(); ui();
     var token = ++S.moveToken, settled = false;
-    function settle() {   // the next word never waits on the animation for long
+    var settle = function () {   // the next word never waits on the animation for long
       if (settled || token !== S.moveToken) return;
       settled = true; afterWord(250);
-    }
+    };
     spawn((function* () { yield* wipe(h, slot); yield* write(h, ch, slot); })(), function () {
       burst(c2w(SLOT.x + slot * SLOT.step + SLOT.w / 2, 345), 22, 3.4, 0.6);
       spawn(hop(eraser, 0.3, 0.4));
       spawn(moveHand(h, h.home, 0.5, 0.35));
       settle();
     });
+    if (reached) settle = function () { if (settled || token !== S.moveToken) return; settled = true; goalReached(); };
     setTimeout(function () {
       if (settled || token !== S.moveToken) return;
       // the page was too slow or hidden: finish the drawing at once and carry on
@@ -836,6 +867,12 @@
       eraser.position.copy(REST); eraser.rotation.set(0, REST_RY, 0);
       settle();
     }, 2200);
+  }
+  function goalReached() {
+    G.state = 'fin'; G.sel = G.hint = null;
+    S.me.d = true; if (two()) S.p2.d = true;
+    S.me.ft = Math.round(now() - S.startAt); S.me.gd = 0;
+    pushMe(); spawn(party()); ui();
   }
   function timeUp() {
     G.state = 'miss'; G.sel = G.hint = null; cp().r += 1; S.me.miss += 1; S.missRow += 1;
@@ -865,14 +902,23 @@
       if (p.isMe && p.sameTab) return;
       var pr = p.presence || {};
       if (typeof pr.n !== 'string' || !pr.n) return;
-      list.push({ id: p.peer, n: pr.n.slice(0, 12), a: Math.abs(+pr.a | 0) % AV.length, s: Math.max(0, Math.min(999, +pr.s | 0)), r: Math.max(0, +pr.r | 0), d: !!pr.d, me: false });
+      list.push({ id: p.peer, n: pr.n.slice(0, 12), a: Math.abs(+pr.a | 0) % AV.length, s: Math.max(0, Math.min(999, +pr.s | 0)), r: Math.max(0, +pr.r | 0), d: !!pr.d,
+        ft: Math.max(0, +pr.ft || 0), gd: Math.max(0, Math.min(99, +pr.gd || 99)), me: false });
     });
     else if (two()) list.push({ id: 'p2', n: S.p2.n, a: S.p2.a, s: S.p2.s, r: S.p2.r, d: S.p2.d, me: false });
-    if (S.me.n) list.push({ id: 'me', n: S.me.n, a: S.me.a, s: S.me.s, r: S.me.r, d: S.me.d, me: true });
-    return list.sort(function (a, b) { return b.s - a.s || (a.n < b.n ? -1 : 1); });
+    if (S.me.n) list.push({ id: 'me', n: S.me.n, a: S.me.a, s: S.me.s, r: S.me.r, d: S.me.d, ft: S.me.ft || 0, gd: S.me.gd === undefined ? 99 : S.me.gd, me: true });
+    return list.sort(function (a, b) { return cmp(a, b) || (a.n < b.n ? -1 : 1); });
+  }
+  // Timed games: most points first. Goal games: finishers by fewest steps then finish time,
+  // then everyone else by how close they got.
+  function cmp(a, b) {
+    if (!goalMode()) return b.s - a.s;
+    if (a.d !== b.d) return a.d ? -1 : 1;
+    if (a.d) return a.s - b.s || a.ft - b.ft;
+    return a.gd - b.gd || a.s - b.s;
   }
   function pushMe() {
-    if (S.room && S.ready) S.room.presence({ n: S.me.n, a: S.me.a, s: S.me.s, r: S.me.r, d: S.me.d, h: S.mode === 'host', t0: S.me.t0 }).catch(noop);
+    if (S.room && S.ready) S.room.presence({ n: S.me.n, a: S.me.a, s: S.me.s, r: S.me.r, d: S.me.d, ft: S.me.ft || 0, gd: S.me.gd === undefined ? 99 : S.me.gd, h: S.mode === 'host', t0: S.me.t0 }).catch(noop);
     renderHud();
   }
   function pushG() { if (S.room) S.room.presence({ g: S.g }).catch(noop); onGame(S.g); }
@@ -1107,6 +1153,8 @@
     var o = { ph: g.ph, id: String(g.id).slice(0, 12), rd: Math.max(0, +g.rd | 0), tot: Math.max(0, Math.min(99, +g.tot | 0)), dur: Math.max(5, Math.min(120, +g.dur || 15)), left: Math.max(0, +g.left || 0),
       st: word(g.st), ch: [], from: word(g.from), to: word(g.to), by: typeof g.by === 'string' ? g.by.slice(0, 12) : '', stuck: word(g.stuck), ba: Math.abs(+g.ba | 0) % AV.length };
     if (Array.isArray(g.ch)) o.ch = g.ch.slice(-80).map(word).filter(Boolean);
+    o.mode = g.mode === 'goal' ? 'goal' : 'timed'; o.tg = word(g.tg);
+    if (o.mode === 'goal' && g.ph === 'play' && (!o.tg || o.tg.length !== o.st.length)) return null;
     if (g.ph === 'play' && !o.st) return null;
     return o;
   }
@@ -1143,11 +1191,13 @@
       S.token++; S.me.s = S.me.r = 0; S.me.d = false; G.state = 'lock'; pushMe(); show('lobby');
     } else if (g.ph === 'play') {
       S.token++; S.me.s = 0; S.me.r = 0; S.me.d = false; S.me.miss = 0;
-      S.p2.s = 0; S.p2.r = 0; S.p2.d = !two(); S.cur = 0; S.missRow = 0; S.newBest = false;
-      startRace(g.st); S.startAt = now() + g.left * 1000; G.state = 'count';
+      S.p2.s = 0; S.p2.r = 0; S.p2.d = !two(); S.cur = 0; S.missRow = 0; S.newBest = false; S.me.ft = 0;
+      startRace(g.st);
+      if (g.mode === 'goal') { G.target = g.tg; G.dist = bfs(g.tg); S.fewest = far(g.st); S.me.gd = S.fewest; paintBackground(); }
+      else S.me.gd = undefined; S.startAt = now() + g.left * 1000; G.state = 'count';
       pushMe(); show('play');
     } else if (g.ph === 'over') {
-      S.token++; saveBest();
+      S.token++; if (!goalMode()) saveBest();
       G.state = 'lock'; G.sel = null; sfx.win(); burst(new THREE.Vector3(0, 1.6, 0), 120, 7, 3); show('over');
     }
   }
@@ -1156,8 +1206,8 @@
   function hostStart() {
     S.allAt = 0;
     // a safety net if someone never finishes; with no limit the game ends only when everyone is done
-    S.hostEnds = S.set.tot ? now() + (3 + S.set.tot * (S.set.dur + 3) + 10) * 1000 : Infinity;
-    S.g = { ph: 'play', id: S.gid, tot: S.set.tot, dur: S.set.dur, st: S.set.start, left: 3 };
+    S.hostEnds = S.set.mode === 'timed' && S.set.tot ? now() + (3 + S.set.tot * (S.set.dur + 3) + 10) * 1000 : Infinity;
+    S.g = { ph: 'play', id: S.gid, mode: S.set.mode, tot: S.set.tot, dur: S.set.dur, st: S.set.start, tg: S.set.goal, left: 3 };
     pushG();
   }
   function hostTick() {
@@ -1189,6 +1239,11 @@
         if (c !== S.shownC) { S.shownC = c; cdEl.hidden = false; cdEl.textContent = c; cdEl.classList.remove('tick'); void cdEl.offsetWidth; cdEl.classList.add('tick'); sfx.tick(); }
       }
     }
+    if (goalMode()) {
+      if (S.shownT !== -2) { S.shownT = -2; timeEl.textContent = G.target; timeEl.classList.add('goal'); timeEl.classList.remove('low'); }
+      return;
+    }
+    timeEl.classList.remove('goal');
     var picking = G.state === 'pick', t = picking ? Math.ceil(wordLeft()) : S.g.dur;
     if (t !== S.shownT) {
       S.shownT = t; timeEl.textContent = t; timeEl.classList.toggle('low', picking && t <= 3);
@@ -1213,8 +1268,10 @@
     hintBtn.disabled = G.state !== 'pick';
     var done = $('done');
     done.hidden = !(S.screen === 'play' && (G.state === 'busy' || G.state === 'fin'));
-    done.textContent = G.state === 'fin' ? (S.mode === 'solo' ? 'All done! \u2605' : 'All done! \u2605 Waiting for the others') : two() ? 'Nice, ' + cp().n + '! \u2605' : 'Nice! \u2605';
+    done.textContent = G.state === 'fin' && goalMode() ? (S.mode === 'solo' ? 'You reached ' + G.target + '! \u2605' : 'You reached ' + G.target + '! \u2605 Waiting for the others')
+      : G.state === 'fin' ? (S.mode === 'solo' ? 'All done! \u2605' : 'All done! \u2605 Waiting for the others') : two() ? 'Nice, ' + cp().n + '! \u2605' : 'Nice! \u2605';
     $('miss').hidden = !(S.screen === 'play' && G.state === 'miss');
+    $('endBtn').hidden = !(S.screen === 'play' && S.mode === 'host' && goalMode());
     boardDirty = true;
   }
   function renderHud(ps) {
@@ -1229,12 +1286,19 @@
       $('p2HudAv').style.background = AV[S.p2.a]; $('p2Score').textContent = S.p2.s;
       $('p2Chip').classList.toggle('on', S.cur === 1 && G.state !== 'fin');
       $('p2Chip').classList.toggle('off', S.cur === 0 && G.state !== 'fin');
+    } else if (solo1 && goalMode()) {
+      rank.textContent = 'Fewest ' + S.fewest;
     } else if (solo1) {
       var best = Math.max(loadBest(), S.me.s);
       rank.textContent = 'Best ' + best;
     } else {
       var at = 1; ps.forEach(function (p) { if (p.me) at = place(ps, p); });
       rank.textContent = '#' + at + ' of ' + ps.length;
+    }
+    if (goalMode()) {
+      var steps = duo ? S.me.s + S.p2.s : S.me.s;
+      $('rd').textContent = (duo && G.state !== 'fin' ? cp().n + ' \u00b7 ' : '') + steps + (steps === 1 ? ' step' : ' steps') + (duo || solo1 ? '' : ' \u00b7 fewest ' + S.fewest);
+      return;
     }
     var p = cp(), r = Math.min(p.r + (G.state === 'fin' ? 0 : 1), S.g.tot || Infinity);
     $('rd').textContent = (duo ? p.n + ' \u00b7 ' : '') + 'Round ' + Math.max(1, r) + (S.g.tot ? ' / ' + S.g.tot : '');
@@ -1244,12 +1308,14 @@
     var e = $('note'); e.textContent = text; e.hidden = false;
     clearTimeout(noteTimer); noteTimer = setTimeout(function () { e.hidden = true; }, 4000);
   }
-  function floatPlus(n) {
-    var chip = two() && S.cur === 1 ? $('p2Chip') : $('meChip'), plus = mk('span', 'plus', '+' + n);
+  function floatPlus(text, sad) {
+    var chip = two() && S.cur === 1 ? $('p2Chip') : $('meChip'), plus = mk('span', 'plus', text);
+    if (sad) plus.style.color = '#7a86a8';
     chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump');
     chip.appendChild(plus); setTimeout(function () { plus.remove(); }, 1300);
   }
-  function place(ps, p) { return 1 + ps.filter(function (q) { return q.s > p.s; }).length; }   // ties share a place
+  function scoreText(p) { return !goalMode() ? p.s : p.d ? p.s + (p.s === 1 ? ' step' : ' steps') : 'not yet'; }
+  function place(ps, p) { return 1 + ps.filter(function (q) { return cmp(q, p) < 0; }).length; }   // ties share a place
   function rowsInto(box, ps, from) {
     box.textContent = ''; box.classList.toggle('fresh', S.fresh);
     ps.slice(from, from + 12).forEach(function (p, i) {
@@ -1257,7 +1323,7 @@
       r.style.animationDelay = (i * 0.07) + 's';
       r.appendChild(mk('span', 'rk', place(ps, p))); r.appendChild(avatar(p.a)); r.appendChild(mk('span', 'nm', p.n));
       if (p.r && S.screen === 'board') r.appendChild(mk('span', 'up', '+' + p.r));
-      r.appendChild(mk('span', 'pts', p.s)); box.appendChild(r);
+      r.appendChild(mk('span', 'pts', scoreText(p))); box.appendChild(r);
     });
   }
   function render() {
@@ -1289,6 +1355,19 @@
     }
     if (S.screen === 'over') {
       var pod = $('podium'); pod.textContent = '';
+      if (S.mode === 'solo' && goalMode()) {
+        var duo2 = two();
+        $('overTitle').textContent = duo2 ? 'You did it together!' : 'You did it!';
+        var c = mk('div', 'solo1 tile');
+        if (duo2) { var pair = mk('div'); pair.style.display = 'flex'; pair.style.gap = '10px'; pair.appendChild(avatar(S.me.a)); pair.appendChild(avatar(S.p2.a)); c.appendChild(pair); }
+        else c.appendChild(avatar(S.me.a));
+        c.appendChild(mk('span', '', G.start + ' \u2192 ' + G.target));
+        var total = duo2 ? S.me.s + S.p2.s : S.me.s;
+        c.appendChild(mk('b', '', total)); c.appendChild(mk('span', '', total === 1 ? 'step' : 'steps'));
+        c.appendChild(mk('span', 'best', total <= S.fewest ? '\u2605 Perfect! The fewest possible' : 'Fewest possible: ' + S.fewest));
+        pod.appendChild(c); $('finalRows').textContent = ''; $('againBtn').hidden = false;
+        S.fresh = false; return;
+      }
       if (S.mode === 'solo' && !two()) {
         $('overTitle').textContent = S.newBest ? 'New best!' : 'Well done!';
         var t = mk('div', 'solo1 tile'); t.appendChild(avatar(S.me.a)); t.appendChild(mk('span', '', S.me.n));
@@ -1300,7 +1379,7 @@
       $('overTitle').textContent = two() ? (ps[0].s === ps[1].s ? 'It\u2019s a tie!' : ps[0].n + ' wins!') : 'Winners!';
       ps.slice(0, 3).forEach(function (p, i) {
         var s = mk('div', 'step p' + (i + 1)); s.appendChild(avatar(p.a)); s.appendChild(mk('b', '', p.n));
-        var b = mk('div', 'blk'); b.appendChild(mk('i', '', place(ps, p))); b.appendChild(mk('u', '', p.s)); s.appendChild(b); pod.appendChild(s);
+        var b = mk('div', 'blk'); b.appendChild(mk('i', '', place(ps, p))); b.appendChild(mk('u', '', scoreText(p))); s.appendChild(b); pod.appendChild(s);
       });
       rowsInto($('finalRows'), ps, 3);
       $('againBtn').hidden = !isHost();
@@ -1327,6 +1406,10 @@
   hintBtn.addEventListener('click', function () {
     if (G.state !== 'pick') return;
     var moves = legal(), easy = moves.filter(function (m) { return COMMONSET.has(m.w); }), best = rand(easy.length ? easy : moves);
+    if (goalMode() && moves.length) {
+      var top = Math.min.apply(null, moves.map(function (m) { return far(m.w); }));
+      best = rand(moves.filter(function (m) { return far(m.w) === top; }));
+    }
     if (!best) return;
     G.hint = G.sel = best.slot; sfx.hint(); ui();
   });
@@ -1337,6 +1420,10 @@
   $('leaveYes').addEventListener('click', function () { quit(''); });
   $('leaveNo').addEventListener('click', function () { $('leaveDlg').hidden = true; });
   $('homeBtn').addEventListener('click', function () { quit(''); });
+  $('endBtn').addEventListener('click', function () {
+    if (S.mode !== 'host' || !S.g || S.g.ph !== 'play') return;
+    sfx.tap(); S.g = Object.assign({}, S.g, { ph: 'over' }); pushG();
+  });
   $('startBtn').addEventListener('click', function () { sfx.tap(); hostStart(); });
   $('nextBtn').addEventListener('click', function () { sfx.tap(); hostStart(S.g.rd + 1); });
   $('againBtn').addEventListener('click', function () {
@@ -1412,6 +1499,7 @@
     nick2El.value = S.p2.n || me.n2 || (rand(NAME_A) + ' ' + rand(NAME_B));
     setP2Av(typeof me.a2 === 'number' && me.a2 !== S.me.a ? me.a2 : S.me.a + 1);
     S.wsteps = intent === 'join' ? 1 : 3;
+    setGameMode(setMode);
     show('who'); setStep(0);
   }
   // Setup is up to three short questions: who is playing, how long, and the first word.
@@ -1431,7 +1519,54 @@
     sfx.tap();
     if (S.wstep > 0) setStep(S.wstep - 1); else quit('');
   });
-  var letters = 4;
+  var letters = 4, setMode = 'timed', chosenGoal = '', goalOwnEl = $('goalOwn');
+  var MODE_TIP = { timed: 'Change one letter before the timer runs out. 1 point for every word made in time.',
+    goal: 'Change one letter at a time until you reach the goal word. No timer: fewest steps wins.' };
+  function setGameMode(m) {
+    setMode = m;
+    $('mTimed').setAttribute('aria-pressed', m === 'timed'); $('mGoal').setAttribute('aria-pressed', m === 'goal');
+    $('modeTip').textContent = MODE_TIP[m];
+    $('timedOpts').hidden = m !== 'timed'; $('goalBox').hidden = m !== 'goal';
+    $('st3Q').textContent = m === 'goal' ? 'Pick your words' : 'Pick a first word';
+    if (m === 'goal') fillGoals();
+  }
+  $('mTimed').addEventListener('click', function () { sfx.tap(); setGameMode('timed'); });
+  $('mGoal').addEventListener('click', function () { sfx.tap(); setGameMode('goal'); });
+  function startWord() { return ownEl.value || chosen; }
+  // Goal words 3 to 5 changes away, reachable through everyday words when the first word is one.
+  function goalOptions(start) {
+    if (!ALL.has(start)) return [];
+    var d = bfs(start, COMMONSET.has(start) ? COMMONSET : ALL), pool = [], near = [];
+    (COMMON_BY[start.length] || []).forEach(function (w) {
+      var k = d.get(w); if (k === undefined || w === start) return;
+      if (k >= 3 && k <= 5) pool.push(w); else if (k >= 2) near.push(w);
+    });
+    if (!pool.length) pool = near;
+    var out = [];
+    if (start === 'HARD' && d.has('SOFT')) out.push('SOFT');   // the puzzle from the video
+    while (out.length < 3 && pool.length) { var w = pool.splice(Math.floor(Math.random() * pool.length), 1)[0]; if (out.indexOf(w) < 0) out.push(w); }
+    return out;
+  }
+  function fillGoals() {
+    var box = $('goals'), list = goalOptions(startWord());
+    box.textContent = '';
+    list.forEach(function (w) {
+      var b = mk('button', '', w); b.type = 'button';
+      b.addEventListener('click', function () { sfx.tap(); goalOwnEl.value = ''; pickGoal(w); });
+      box.appendChild(b);
+    });
+    pickGoal(goalOwnEl.value || list[0] || '');
+  }
+  function pickGoal(w) {
+    chosenGoal = w;
+    [].forEach.call($('goals').children, function (b) { b.setAttribute('aria-pressed', b.textContent === w && !goalOwnEl.value); });
+    goalOwnEl.classList.toggle('picked', !!goalOwnEl.value);
+  }
+  $('goalMix').addEventListener('click', function () { sfx.tap(); goalOwnEl.value = ''; fillGoals(); });
+  goalOwnEl.addEventListener('input', function () {
+    goalOwnEl.value = goalOwnEl.value.toUpperCase().replace(/[^A-Z]/g, '');
+    if (goalOwnEl.value) pickGoal(goalOwnEl.value); else pickGoal(($('goals').firstChild || {}).textContent || '');
+  });
   function fillWords() {
     var list = firstFill && letters === 4 ? ['HARD'] : []; firstFill = false;
     for (var guard = 0; list.length < 6 && guard < 800; guard++) {
@@ -1450,6 +1585,7 @@
     chosen = w;
     [].forEach.call(wordsEl.children, function (b) { b.setAttribute('aria-pressed', b.textContent === w && !ownEl.value); });
     ownEl.classList.toggle('picked', !!ownEl.value);
+    if (setMode === 'goal') fillGoals();
   }
   $('mix').addEventListener('click', function () { sfx.tap(); ownEl.value = ''; fillWords(); });
   [3, 4, 5, 6, 7].forEach(function (n) {
@@ -1511,7 +1647,17 @@
       : !ALL.has(w) ? 'We don\u2019t know ' + w + '. Try another word.'
       : !neighbours(w).length ? 'No real word is one letter away from ' + w + ', so the game could not start. Try another.' : '';
     if (why) { $('whoMsg').textContent = why; wobble(ownEl); return; }
-    S.set = { tot: rounds, dur: secs, start: w };
+    var goal = '';
+    if (setMode === 'goal') {
+      goal = goalOwnEl.value || chosenGoal;
+      var gwhy = !goal ? 'Pick a goal word.'
+        : goal.length !== w.length ? 'The goal needs ' + w.length + ' letters, like ' + w + '.'
+        : goal === w ? 'Pick a goal that is different from the first word.'
+        : !ALL.has(goal) ? 'We don\u2019t know ' + goal + '. Try another goal.'
+        : !bfs(w).has(goal) ? goal + ' can\u2019t be reached from ' + w + ' one letter at a time. Try another goal.' : '';
+      if (gwhy) { $('whoMsg').textContent = gwhy; wobble(goalOwnEl); return; }
+    }
+    S.set = { mode: setMode, tot: setMode === 'goal' ? 0 : rounds, dur: setMode === 'goal' ? 0 : secs, start: w, goal: goal };
     if (S.intent === 'solo') {
       S.mode = 'solo'; S.ready = true; S.gid = newId();
       hostStart(); return;
