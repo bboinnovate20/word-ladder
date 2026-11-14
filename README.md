@@ -7,28 +7,42 @@ Plain static site: `index.html` plus `qrcode.js`. No build step.
 
 ## Deploy to Vercel
 
-1. Put this folder in a GitHub repo (or run `npx vercel` inside it).
-2. In Vercel: **Add New > Project**, import the repo, framework preset **Other**, no build command,
+1. Import this repo in Vercel: **Add New > Project**, framework preset **Other**, no build command,
    output directory left as the repo root.
-3. Deploy. Solo mode works straight away.
+2. Deploy. Every push to `main` redeploys.
 
-## Switch on "play together" (join codes and QR)
+Solo and play-together (Host / Join, game code, QR) both work straight away.
 
-On your own hosting the game talks to other players through Supabase Realtime presence.
+## How play-together connects
 
-1. Create a free project at supabase.com.
-2. Copy the **Project URL** and the **publishable (anon) key** from the project's API settings.
-3. Paste them into the small config block near the bottom of `index.html`:
+By default the game uses the free public [PeerJS](https://peerjs.com) service: the host's device is the hub
+and players' devices connect straight to it. Nothing to set up, nothing stored anywhere.
+
+Some school, office or hotel networks block direct device-to-device connections. If players there
+can't join, switch to Supabase below.
+
+## Optional: Supabase (sturdier connection)
+
+With Supabase, every device talks to Supabase's servers instead of to each other, so it works on
+strict networks too. The free plan is enough.
+
+1. Sign up at [supabase.com](https://supabase.com) and create a new project (any name and region;
+   pick one near your players, for example London).
+2. Open **Project Settings > API Keys** (or the **Connect** button) and copy:
+   - the **Project URL**, like `https://abcdefghijkl.supabase.co`
+   - the **publishable** key (starts `sb_publishable_`), or the legacy **anon public** key
+3. In **Realtime > Settings**, make sure **Allow public access** is on. The game uses public
+   presence channels named `wl-<game code>` and stores nothing in the database.
+4. Put both values in the config block near the bottom of `index.html`:
 
    ```html
-   window.WORD_LADDER = { supabaseUrl: 'https://YOUR-PROJECT.supabase.co', supabaseKey: 'YOUR-PUBLISHABLE-KEY' };
+   window.WORD_LADDER = Object.assign({ supabaseUrl: 'https://abcdefghijkl.supabase.co', supabaseKey: 'sb_publishable_...' }, window.WORD_LADDER);
    ```
 
-4. In the Supabase dashboard, Realtime > Settings, keep **Allow public access** on. The game uses
-   public presence channels named `wl-<game code>`; it stores nothing in the database.
-5. Redeploy.
+5. Commit and push; Vercel redeploys.
 
-The publishable key is meant to be public. Do not paste the service-role key.
+The publishable/anon key is meant to be public, so it is fine in the repo. Never paste the
+**secret** or **service_role** key.
 
 ## How a game runs
 
@@ -43,4 +57,4 @@ The publishable key is meant to be public. Do not paste the service-role key.
 
 - Scores are counted on each player's device, so they can be faked by someone determined.
 - If the host closes the page, the game ends for everyone.
-- The Supabase connection was written against the documented API but has not been run against a live project yet.
+- The Supabase connection was written against the documented API but has not yet been run against a live project.

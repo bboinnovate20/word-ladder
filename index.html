@@ -260,9 +260,10 @@
 </div>
 
 <script>
-  // Hosting this yourself (Vercel, Netlify, ...)? Paste your Supabase project URL and anon key here
-  // to switch on "play together". See README.md. Leave empty for solo-only.
-  window.WORD_LADDER = { supabaseUrl: '', supabaseKey: '' };
+  // Play together works on any hosting (Vercel, Netlify, ...) with no setup: devices connect straight
+  // to the host through the free PeerJS service. For a sturdier connection, paste a Supabase project
+  // URL and publishable key here instead. See README.md.
+  window.WORD_LADDER = Object.assign({ supabaseUrl: '', supabaseKey: '' }, window.WORD_LADDER);
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="qrcode.js"></script>
@@ -784,13 +785,87 @@
       });
     } };
   }
+  /* Zero-setup option: the host's device is the hub. Its PeerJS id is fixed by the game code, so
+     joiners connect to it directly; the hub keeps everyone's presence and sends the whole set back
+     out whenever any of it changes. A code nobody is hosting makes the joiner the hub of an empty
+     game, which the join screen reports as "no game with that code". */
+  function peerLobby(opts) {
+    return { join: function (name) {
+      return new Promise(function (ok, fail) {
+        var hubId = 'wordladder-bbo-' + name, me = null, state = {}, handlers = [], room, closed = false, settled = false;
+        var isHub = false, hubConn = null, others = {}, snapshot = {};
+        function list() {
+          var mine = me && me.id, out = [{ peer: mine || 'me', isMe: true, sameTab: true, presence: state }], src = snapshot;
+          if (isHub) { src = {}; Object.keys(others).forEach(function (k) { src[k] = others[k].p; }); }
+          Object.keys(src).forEach(function (k) { if (k !== mine) out.push({ peer: k, isMe: false, sameTab: false, presence: src[k] || {} }); });
+          return out;
+        }
+        function fire() { var s = list(); handlers.forEach(function (h) { h({ peers: s }); }); }
+        function broadcast() {
+          var all = {}; all[me.id] = state;
+          Object.keys(others).forEach(function (k) { all[k] = others[k].p; });
+          Object.keys(others).forEach(function (k) { var c = others[k].conn; if (c.open) { try { c.send({ t: 'all', all: all }); } catch (e) {} } });
+        }
+        function settle(err) {
+          if (settled) return; settled = true;
+          if (err) { closed = true; try { if (me) me.destroy(); } catch (e) {} fail(err); } else ok(room);
+        }
+        function keepRegistered() { me.on('disconnected', function () { if (!closed) { try { me.reconnect(); } catch (e) {} } }); }
+        room = {
+          presence: function (patch) {
+            state = Object.assign({}, state, patch);
+            if (isHub) broadcast();
+            else if (hubConn && hubConn.open) { try { hubConn.send({ t: 'me', p: state }); } catch (e) {} }
+            fire(); return Promise.resolve();
+          },
+          onPeers: function (h) { handlers.push(h); setTimeout(fire, 0); return function () { handlers = handlers.filter(function (x) { return x !== h; }); }; },
+          peers: list,
+          leave: function () { closed = true; handlers = []; try { if (me) me.destroy(); } catch (e) {} return Promise.resolve(); }
+        };
+        function asHub() {
+          isHub = true; room.ownsCode = true; keepRegistered();
+          me.on('connection', function (c) {
+            c.on('data', function (m) {
+              if (!m || m.t !== 'me' || !m.p || typeof m.p !== 'object' || JSON.stringify(m.p).length > 3000) return;
+              others[c.peer] = { conn: c, p: m.p }; broadcast(); fire();
+            });
+            c.on('close', function () { if (others[c.peer] && others[c.peer].conn === c) { delete others[c.peer]; broadcast(); fire(); } });
+            c.on('error', noop);
+          });
+          settle();
+        }
+        function asClient() {
+          me = new window.Peer(opts);
+          keepRegistered();
+          me.on('open', function () {
+            var t = setTimeout(function () { settle({ code: 'upstream_error' }); }, 9000);
+            hubConn = me.connect(hubId, { reliable: true, serialization: 'json' });
+            hubConn.on('open', function () { clearTimeout(t); hubConn.send({ t: 'me', p: state }); settle(); });
+            hubConn.on('data', function (m) { if (m && m.t === 'all' && m.all && typeof m.all === 'object') { snapshot = m.all; fire(); } });
+            hubConn.on('close', function () { if (!closed) { snapshot = {}; fire(); } });
+            hubConn.on('error', noop);
+          });
+          me.on('error', function () { settle({ code: 'upstream_error' }); });
+        }
+        me = new window.Peer(hubId, opts);
+        me.on('open', asHub);
+        me.on('error', function (e) {
+          if (settled) return;
+          if (e && e.type === 'unavailable-id') { try { me.destroy(); } catch (x) {} asClient(); }
+          else settle({ code: 'upstream_error' });
+        });
+      });
+    } };
+  }
   var roomP = IN_CLAUDE
     ? Promise.resolve(window.claude.use('room')).catch(function () { return null; })
     : (CFG.supabaseUrl && CFG.supabaseKey
       ? loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js').then(function () {
           return supabaseLobby(window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, { realtime: { params: { eventsPerSecond: 10 } } }));
         }).catch(function () { return null; })
-      : Promise.resolve(null));
+      : loadScript('https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js').then(function () {
+          return window.Peer ? peerLobby(Object.assign({ debug: 0 }, CFG.peerServer || {})) : null;
+        }).catch(function () { return null; }));
 
   // The link a QR code or "Copy link" hands out: this page, opened straight into the game.
   var ARTIFACT_URL = 'https://claude.ai/artifact/8HEfgaDmnrQyfePkQY5GAo';
@@ -1067,7 +1142,7 @@
   // home: join with a code, host, or solo
   var codeEl = $('code'), joinBtn = $('joinBtn');
   var OFFLINE = IN_CLAUDE ? 'Playing together works for people this page is shared with, signed in to Claude. Solo works for everyone.'
-    : 'Playing together is not switched on for this site yet. Solo works.';
+    : 'Could not reach the game server. Check your internet and try again, or play Solo.';
   function wobble(e) { sfx.nope(); e.classList.remove('no'); void e.offsetWidth; e.classList.add('no'); }
   function why(e) { return e && (e.code === 'off' || e.code === 'not_permitted' || e.code === 'not_granted') ? OFFLINE : 'Could not connect. Try again.'; }
   codeEl.addEventListener('input', function () { codeEl.value = codeEl.value.replace(/\D/g, '').slice(0, 6); $('homeMsg').textContent = ''; });
@@ -1078,7 +1153,7 @@
     joinBtn.disabled = true; joinBtn.textContent = '…'; $('homeMsg').textContent = '';
     openRoom(code).then(function () {
       var tries = 0;
-      return (function look() { return hostPeer() || tries++ > 15 ? null : sleep(200).then(look); })();
+      return (function look() { return hostPeer() || tries++ > 15 || (S.room && S.room.ownsCode) ? null : sleep(200).then(look); })();
     }).then(function () {
       if (!hostPeer()) { closeRoom(); $('homeMsg').textContent = 'No game with that code right now.'; wobble(codeEl); return; }
       S.mode = 'join'; S.hostSeen = true; S.pending = cleanG(hostPeer().presence.g); openWho('join');
