@@ -1,9 +1,11 @@
 # Word Ladder
 
-A 3D word-ladder race. Everyone gets the same start word and target word and the same clock;
-change one letter at a time, every correct word scores, faster scores more.
+A 3D word-ladder race. Each round shows one word, and everyone races to change one letter to make
+a new real word before the clock runs out. Faster correct answers score more, and the fastest
+player's word becomes the next round's word.
 
-Plain static site: `index.html` plus `qrcode.js`. No build step.
+Plain static site: `index.html`, `words.js` (the dictionary), `qrcode.js`, and `api/config.js`
+(optional, reads Supabase keys on Vercel). No build step.
 
 ## Deploy to Vercel
 
@@ -51,12 +53,25 @@ The publishable/anon key is meant to be public, so it is fine in the repo. Never
 
 ## How a game runs
 
-- The host picks rounds, seconds per round and a first word, and gets a six-digit code.
+- The host picks the number of rounds (5, 10 or any number), seconds per word (10, 15 or 20),
+  the word length (3 to 7 letters), and a first word (a suggestion or any real word they type).
+  They get a six-digit code.
 - Players join by typing the code, scanning the lobby QR code, or opening the copied link
   (`https://your-site/#join-123456`).
-- Each device shares only its own name, colour, score and "done" flag. The host's device also
-  shares the round, the two words and the seconds left, and runs the clock.
-- Scoring: 100 per correct word, up to +100 for speed, and 300 + 10 per second left for reaching the target.
+- Each round everyone changes one letter of the same word. A word already used in this game
+  doesn't count.
+- Scoring: a correct word is worth 1000 points the moment the round opens, draining to 200 as the
+  clock runs down. Missing the clock scores nothing and resets your streak. Answering several rounds
+  in a row adds +100, +200 or +300 on top.
+- After each round a leaderboard shows the change (for example HARD -> LARD) and who was fastest.
+  Their word starts the next round. If nobody answers, the same word stays.
+- Solo mode plays the same rules against two robot players.
+
+## Dictionary
+
+`words.js` holds about 45,000 words of 3 to 7 letters, from the `wordlist-english` (SCOWL) and
+`word-list` packages, with swear words and slurs removed. "Everyday" words (the most common ones)
+are used for suggestions and robot moves; players may type any word in the full list.
 
 ## Known limits
 
