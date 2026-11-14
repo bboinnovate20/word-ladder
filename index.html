@@ -155,6 +155,7 @@
   .fast { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; min-height: 40px; }
   .fast .av { --s: 34px; }
   #miss { position: fixed; left: 50%; top: 96px; translate: -50% 0; padding: 8px 18px; border-radius: 999px; box-shadow: 0 5px 0 var(--ink); background: var(--pop); color: #fff; font-weight: 700; font-size: 18px; white-space: nowrap; pointer-events: none; animation: popin .35s both; }
+  #note { position: fixed; left: 50%; top: 92px; translate: -50% 0; width: max-content; max-width: calc(100vw - 40px); box-sizing: border-box; padding: 10px 18px; border-radius: 18px; box-shadow: 0 5px 0 var(--ink); background: var(--sun); font-weight: 700; font-size: 17px; line-height: 1.25; text-align: center; text-wrap: balance; pointer-events: none; animation: popin .35s both; }
   #done { position: fixed; left: 50%; top: 96px; translate: -50% 0; padding: 8px 18px; border-radius: 999px; box-shadow: 0 5px 0 var(--ink); background: var(--mint); font-weight: 700; font-size: 18px; white-space: nowrap; pointer-events: none; animation: popin .35s both; }
 
   .dock { position: fixed; left: 12px; right: 12px; bottom: 14px; display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none; }
@@ -182,6 +183,7 @@
 <div id="cd" hidden></div>
 <div class="tile" id="done" hidden>Nice! &#9733;</div>
 <div class="tile" id="miss" hidden>Time's up!</div>
+<div class="tile" id="note" role="status" hidden></div>
 <div class="dock" id="dock" hidden>
   <div class="keys" id="keys" hidden></div>
   <div class="tools">
@@ -962,7 +964,7 @@
     if (!g || ['lobby', 'play', 'board', 'over'].indexOf(g.ph) < 0) return null;
     var word = function (w) { w = String(w || '').toUpperCase(); return ALL.has(w) ? w : ''; };
     var o = { ph: g.ph, id: String(g.id).slice(0, 12), rd: Math.max(0, +g.rd | 0), tot: Math.max(1, Math.min(99, +g.tot | 0)), dur: Math.max(5, Math.min(120, +g.dur || 15)), left: Math.max(0, +g.left || 0),
-      st: word(g.st), ch: [], from: word(g.from), to: word(g.to), by: typeof g.by === 'string' ? g.by.slice(0, 12) : '', ba: Math.abs(+g.ba | 0) % AV.length };
+      st: word(g.st), ch: [], from: word(g.from), to: word(g.to), by: typeof g.by === 'string' ? g.by.slice(0, 12) : '', stuck: word(g.stuck), ba: Math.abs(+g.ba | 0) % AV.length };
     if (Array.isArray(g.ch)) o.ch = g.ch.slice(-80).map(word).filter(Boolean);
     if (g.ph === 'play' && !o.st) return null;
     return o;
@@ -1001,6 +1003,7 @@
       if (g.rd <= 1) { S.me.s = 0; S.me.k = 0; }
       S.me.r = 0; S.me.d = false; S.me.aw = ''; S.me.ae = 0;
       startRace(g.st, g.ch, g.rd); G.state = 'count'; pushMe(); armBots(); show('play');
+      if (g.stuck) note('No new word can be made from ' + g.stuck + ', so here is a fresh one!');
     } else if (g.ph === 'board') {
       if (!S.me.d) S.me.k = 0;
       G.state = 'lock'; G.sel = null; sfx.board(); show('board');
@@ -1023,10 +1026,10 @@
   }
   function hostStart(rd) {
     if (rd === 1) { S.chain = []; S.next = S.set.start; S.bots.forEach(function (b) { b.s = 0; b.k = 0; }); }
-    var st = S.next;
-    if (!st || !hasMove(st, S.chain)) st = freshWord(S.chain, (st || S.set.start).length);   // a dead end: carry on from a new word
+    var st = S.next, stuck = '';
+    if (!st || !hasMove(st, S.chain)) { stuck = st || ''; st = freshWord(S.chain, (st || S.set.start).length); }   // a dead end: carry on from a new word, and say so
     S.allAt = 0; S.hostEnds = now() + (S.set.dur + 3) * 1000;
-    S.g = { ph: 'play', id: S.gid, rd: rd, tot: S.set.tot, dur: S.set.dur, st: st, ch: S.chain.slice(-80), left: S.set.dur + 3 };
+    S.g = { ph: 'play', id: S.gid, rd: rd, tot: S.set.tot, dur: S.set.dur, st: st, ch: S.chain.slice(-80), left: S.set.dur + 3, stuck: stuck };
     pushG();
   }
   // The fastest correct word of the round becomes the next round's word.
@@ -1109,7 +1112,7 @@
     S.screen = name; S.fresh = true;
     ['home', 'who', 'lobby', 'board', 'over'].forEach(function (id) { $(id).hidden = id !== name; });
     $('hud').hidden = $('dock').hidden = name !== 'play';
-    if (name !== 'play') cdEl.hidden = true;
+    if (name !== 'play') { cdEl.hidden = true; $('note').hidden = true; }
     render(); ui();
   }
   function ui() {
@@ -1126,6 +1129,11 @@
     var at = 1; ps.forEach(function (p, i) { if (p.me) at = i + 1; });
     $('rank').textContent = '#' + at + ' of ' + ps.length;
     $('rd').textContent = S.g.rd + ' / ' + S.g.tot;
+  }
+  var noteTimer = 0;
+  function note(text) {
+    var e = $('note'); e.textContent = text; e.hidden = false;
+    clearTimeout(noteTimer); noteTimer = setTimeout(function () { e.hidden = true; }, 4000);
   }
   function floatPlus(n) {
     var chip = $('meChip'), plus = mk('span', 'plus', '+' + n);
@@ -1343,7 +1351,10 @@
       return;
     }
     var w = ownEl.value || chosen;
-    if (w.length < 3 || w.length > 7 || !ALL.has(w) || !neighbours(w).length) { $('whoMsg').textContent = 'That first word is not one we know. Try another.'; wobble(ownEl); return; }
+    var why = w.length < 3 || w.length > 7 ? 'Pick a first word with 3 to 7 letters.'
+      : !ALL.has(w) ? 'We don\u2019t know ' + w + '. Try another word.'
+      : !neighbours(w).length ? 'No real word is one letter away from ' + w + ', so the game could not start. Try another.' : '';
+    if (why) { $('whoMsg').textContent = why; wobble(ownEl); return; }
     S.set = { tot: rounds, dur: secs, start: w };
     if (S.intent === 'solo') {
       S.mode = 'solo'; S.ready = true; S.gid = newId();
