@@ -869,14 +869,24 @@
       return supabaseLobby(window.supabase.createClient(url, key, { realtime: { params: { eventsPerSecond: 10 } } }));
     });
   }
+  // A usable value is a non-empty string. false or "" from /api/config means that env var is unset.
+  function envValue(v) { return typeof v === 'string' && v.trim() ? v.trim() : ''; }
   // Supabase keys come from the config block above, or from /api/config (Vercel environment
-  // variables, see api/config.js). With neither, or if Supabase will not load, PeerJS is used.
+  // variables SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY, see api/config.js). With neither, or if
+  // Supabase will not load, PeerJS is used.
   function supabaseKeys() {
-    if (CFG.supabaseUrl && CFG.supabaseKey) return Promise.resolve({ url: CFG.supabaseUrl, key: CFG.supabaseKey });
+    var url = envValue(CFG.supabaseUrl), key = envValue(CFG.supabaseKey);
+    if (url && key) return Promise.resolve({ url: url, key: key });
     if (!window.fetch || location.protocol === 'file:') return Promise.resolve({});
     return fetch('/api/config', { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : {}; })
-      .then(function (c) { return { url: c && c.supabaseUrl, key: c && c.supabaseKey }; })
+      .then(function (c) {
+        url = envValue(c && c.supabaseUrl);
+        key = envValue(c && c.supabaseKey);
+        if (url) CFG.supabaseUrl = url;
+        if (key) CFG.supabaseKey = key;
+        return { url: url, key: key };
+      })
       .catch(function () { return {}; });
   }
   var roomP = IN_CLAUDE

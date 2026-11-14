@@ -8,8 +8,10 @@ module.exports = (req, res) => {
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'public, max-age=60');
+  const url = supabaseUrl.trim();
+  const key = supabaseKey.trim();
   res.status(200).send(JSON.stringify({
-    supabaseUrl: supabaseUrl.trim() !== '',
-    supabaseKey: supabaseKey.trim() !== ''
+    supabaseUrl: url || false,
+    supabaseKey: key || false
   }));
 };
